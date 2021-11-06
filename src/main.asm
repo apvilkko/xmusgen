@@ -27,16 +27,18 @@ tick = $18
 color = $19
 beatcounter = $1a
 voiceframe1 = $1b
-temp = $1c
-offset = $1d
-voiceframe2 = $1e
-voiceframe3 = $1f
-quartercount = $20
-voiceframe4 = $21
+voiceframe2 = $1c
+voiceframe3 = $1d
+voiceframe4 = $1e
+temp = $1f
+offset = $20
+quartercount = $21
+voiceoffset = $22
 
 SIXTEENTH1 = 8
 EIGHTH = 13
 SIXTEENTH2 = 20
+N_A = $fe
 
 ;================================
 ; PROGRAM START
@@ -195,7 +197,7 @@ CheckSnare:
 	lda beatcounter
 	cmp #SIXTEENTH1
 	beq PossiblyTriggerSnare
-	if_rand #$20, DoTriggerBass
+	if_rand #$30, DoTriggerBass
 	jmp RunSounds
 IsOffBeat:
 	lda beatcounter
@@ -225,8 +227,8 @@ TriggerSnare:
 	sta voiceframe3
 	rts
 TriggerBass:
-	; don't trigger when snare started since same channel
-	lda voiceframe3
+	; don't trigger when other started since same channel
+	lda voiceframe1
 	cmp #$ff
 	bne DontPlayBass
 	lda #0
@@ -240,18 +242,24 @@ RunSounds:
 	beq SkipVoice1
 
 	jsr SetSoundOffset
+	lda #0
+	sta voiceoffset
 
-	ldy #0
+	clc
+	adc #6 ; loop SID registers from 6->0
+	tay
 .loopframe:
 	tya
 	clc
 	adc offset
 	tax
 	lda Kick1,x
+	cmp #N_A
+	beq .skipVoiceChange
 	sta SID_V1_FREQ_1,y
-	iny
-	cpy #7
-	bne .loopframe
+.skipVoiceChange:
+	dey
+	bpl .loopframe
 
 	inc voiceframe1
 	lda voiceframe1
@@ -276,7 +284,10 @@ SkipVoice1:
 	adc offset
 	tax
 	lda Hihat1,x
+	cmp #N_A
+	beq .skipVoiceChange
 	sta SID_V2_FREQ_1,y
+.skipVoiceChange:
 	iny
 	cpy #7
 	bne .loopframe
@@ -303,7 +314,10 @@ SkipVoice2:
 	adc offset
 	tax
 	lda Snare1,x
+	cmp #N_A
+	beq .skipVoiceChange
 	sta SID_V3_FREQ_1,y
+.skipVoiceChange:
 	iny
 	cpy #7
 	bne .loopframe
@@ -330,7 +344,10 @@ SkipVoice3:
 	adc offset
 	tax
 	lda Bass1,x
-	sta SID_V3_FREQ_1,y
+	cmp #N_A
+	beq .skipVoiceChange
+	sta SID_V1_FREQ_1,y
+.skipVoiceChange:
 	iny
 	cpy #7
 	bne .loopframe
@@ -419,41 +436,41 @@ Rand:
 
 	;  FRL  FRH  PWL  PWH  CTL  AD   SR   Unused
 Kick1:
-	db $29, $34, $00, $04, $81, $00, $f4, $00
-	db $29, $34, $00, $04, $81, $00, $f4, $00
-	db $e8, $06, $00, $04, $41, $00, $f4, $00
-	db $74, $03, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $2d, $02, $00, $04, $41, $00, $f4, $00
-	db $2d, $02, $00, $04, $11, $00, $f4, $00
-	db $2d, $02, $00, $04, $10, $00, $f4, $00
+	db $29, $64, $00, $04, $81, $00, $f4, $00
+	db $29, $34, N_A, N_A, N_A, N_A, N_A, $00
+	db $e8, $06, N_A, N_A, $11, N_A, N_A, $00
+	db $96, $02, N_A, N_A, N_A, N_A, N_A, $00
+	db $3f, $02, N_A, N_A, N_A, N_A, N_A, $00
+	db $2d, $02, N_A, N_A, $10, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, $00, $00
 
 Hihat1:
 	db $ff, $ff, $00, $04, $81, $00, $a2, $00
-	db $f0, $c4, $00, $04, $81, $00, $a2, $00
-	db $10, $7c, $00, $04, $81, $00, $a2, $00
-	db $74, $af, $00, $04, $11, $00, $a2, $00
-	db $10, $7c, $00, $04, $81, $00, $a2, $00
-	db $10, $7c, $00, $04, $80, $00, $a2, $00
-	db $10, $7c, $00, $04, $80, $00, $a2, $00
-	db $10, $7c, $00, $04, $80, $00, $a2, $00
+	db $f0, $cb, N_A, N_A, N_A, N_A, N_A, $00
+	db $74, $bf, N_A, N_A, $11, N_A, $32, $00
+	db $ff, $ff, N_A, N_A, $81, N_A, $a2, $00
+	db N_A, N_A, N_A, N_A, $80, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, $00, $00
 
 Snare1:
-	db $20, $f8, $00, $04, $81, $00, $f3, $00
-	db $20, $f8, $00, $04, $81, $00, $f3, $00
-	db $15, $1a, $00, $04, $81, $00, $f3, $00
-	db $0a, $0d, $00, $04, $21, $00, $f3, $00
-	db $96, $02, $00, $04, $80, $00, $f3, $00
-	db $2d, $02, $00, $04, $80, $00, $f3, $00
-	db $2d, $02, $00, $04, $80, $00, $f3, $00
-	db $2d, $02, $00, $04, $80, $00, $f3, $00
+	db $20, $f8, $00, $04, $81, $00, $a4, $00
+	db $0a, $10, N_A, N_A, $11, N_A, N_A, $00
+	db $96, $02, N_A, N_A, $81, N_A, N_A, $00
+	db $0a, $0d, N_A, N_A, $21, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, $80, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, $00, $00
 
 Bass1:
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $41, $00, $f4, $00
-	db $96, $02, $00, $04, $40, $00, $f4, $00
+	db $96, $02, $00, $01, $41, $00, $c4, $00
+	db N_A, N_A, N_A, $02, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, $03, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, $04, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, $21, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, N_A, N_A, N_A, $00
+	db N_A, N_A, N_A, N_A, $40, N_A, N_A, $00
